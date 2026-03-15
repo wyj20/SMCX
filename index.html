@@ -227,7 +227,7 @@
         function calculateToday(baseDateStr, workDays, restDays) {
             const resultDiv = document.getElementById('result');
             if (!baseDateStr) {
-                resultDiv.innerHTML = "<span style='font-size: 0.6em; color: #999;'>请在下方配置参数 👇</span>";
+                resultDiv.innerHTML = "<span style='font-size: 0.6em; color: #999;'>请先配置排班参数❗️</span>";
                 return;
             }
             const baseDate = new Date(baseDateStr);
