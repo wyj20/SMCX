@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>锁门大叔的值班日</title>
+    <title>锁门查询</title>
     <style>
         body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #f9f9f9;}
         .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -11,65 +11,118 @@
         .work { color: #d9534f; } /* 红色上班 */
         .rest { color: #5cb85c; } /* 绿色休息 */
         .settings { margin-top: 40px; padding-top: 20px; border-top: 1px dashed #ccc; font-size: 0.9em; color: #666; text-align: left;}
-        input { padding: 8px; font-size: 1em; border: 1px solid #ccc; border-radius: 5px; width: 80%; box-sizing: border-box; margin-top: 10px;}
+        
+        /* 输入框样式优化 */
+        input[type="date"] { padding: 8px; font-size: 1em; border: 1px solid #ccc; border-radius: 5px; width: 100%; box-sizing: border-box; margin-top: 10px; margin-bottom: 15px;}
+        input[type="number"] { padding: 8px; font-size: 1em; border: 1px solid #ccc; border-radius: 5px; width: 60px; text-align: center; margin: 0 5px;}
+        
+        .row { margin-bottom: 15px; display: flex; align-items: center; justify-content: flex-start; }
+        
+        .reset-btn { 
+            background-color: #f0ad4e; color: white; border: none; padding: 10px 15px; 
+            border-radius: 5px; font-size: 1em; cursor: pointer; width: 100%; box-sizing: border-box; margin-top: 10px;
+        }
+        .reset-btn:active { background-color: #ec971f; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2 style="color: #333; margin-bottom: 5px;">今天值班的是？</h2>
+        <h2 style="color: #333; margin-bottom: 5px;">今天是哪位大叔值班？</h2>
         <div id="result" class="result">正在读取记忆...</div>
         
         <div class="settings">
-            <p>⚙️ <b>初始设置（只需操作一次）：</b></p>
-            <p>请选择任意一个你确定<b>锁门大叔值班</b>的日期，程序会自动记住它作为基准。</p>
+            <p>⚙️ <b>大叔排班规律设置：</b></p>
+            
+            <div class="row">
+                上 <input type="number" id="workDays" value="1" min="1" onchange="saveAndCalculate()"> 天，
+                休 <input type="number" id="restDays" value="1" min="1" onchange="saveAndCalculate()"> 天
+            </div>
+
+            <p style="font-size: 0.8em; margin-bottom: 5px;">请选择周期内<b>第一天上班</b>的日期作为基准：</p>
             <input type="date" id="baseDate" onchange="saveAndCalculate()">
+            
+            <button class="reset-btn" onclick="resetSettings()">🔄 重置全部设置</button>
         </div>
     </div>
 
     <script>
-        // 这个函数负责保存你的设置并计算
+        // 保存所有设置并触发计算
         function saveAndCalculate() {
             const selectedDate = document.getElementById('baseDate').value;
+            const workD = parseInt(document.getElementById('workDays').value) || 1;
+            const restD = parseInt(document.getElementById('restDays').value) || 1;
+            
+            // 只有选择了日期才开始记忆和计算
             if (!selectedDate) return;
             
-            // ⭐️ 核心：把日期保存在浏览器的记忆里
+            // 保存这三个关键数据到浏览器记忆
             localStorage.setItem('myWorkBaseDate', selectedDate);
+            localStorage.setItem('myWorkDays', workD);
+            localStorage.setItem('myRestDays', restD);
             
-            // 执行计算
-            calculate(selectedDate);
+            calculate(selectedDate, workD, restD);
         }
 
-        // 这个函数负责算天数
-        function calculate(baseDateStr) {
+        // 核心计算逻辑
+        function calculate(baseDateStr, workDays, restDays) {
             const baseDate = new Date(baseDateStr);
             baseDate.setHours(0, 0, 0, 0);
             
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             
-            // 算相差天数
-            const diffTime = Math.abs(today - baseDate);
+            // 计算总周期天数
+            const totalCycle = workDays + restDays;
+            
+            // 计算今天距离基准日相差的天数
+            const diffTime = today - baseDate;
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
             
+            // 算出今天是周期里的第几天 (处理了如果基准日选在未来的情况)
+            const cycleDay = ((diffDays % totalCycle) + totalCycle) % totalCycle;
+            
             const resultDiv = document.getElementById('result');
-            if (diffDays % 2 === 0) {
+            // 如果周期内的天数小于上班天数，就是上班，否则是休息
+            if (cycleDay < workDays) {
                 resultDiv.innerHTML = "<span class='work'>锁门大叔😭</span>";
             } else {
                 resultDiv.innerHTML = "<span class='rest'>不锁门大叔🥳</span>";
             }
         }
 
-        // 页面打开时自动运行的部分
+        // 重置功能：彻底清空记忆并恢复默认界面
+        function resetSettings() {
+            // 1. 清除浏览器的三项记忆
+            localStorage.removeItem('myWorkBaseDate');
+            localStorage.removeItem('myWorkDays');
+            localStorage.removeItem('myRestDays');
+            
+            // 2. 恢复输入框的默认值
+            document.getElementById('baseDate').value = '';
+            document.getElementById('workDays').value = '1';
+            document.getElementById('restDays').value = '1';
+            
+            // 3. 恢复顶部提示文字
+            document.getElementById('result').innerHTML = "<span style='font-size: 0.6em; color: #999;'>已重置，请在下方重新设置 👇</span>";
+        }
+
+        // 页面打开时自动运行
         window.onload = function() {
-            // ⭐️ 核心：尝试从记忆里找出你之前设置的日期
+            // 尝试读取记忆
             const savedDate = localStorage.getItem('myWorkBaseDate');
+            const savedWorkDays = localStorage.getItem('myWorkDays');
+            const savedRestDays = localStorage.getItem('myRestDays');
             
             if (savedDate) {
-                // 如果找到了记忆，直接填入并告诉你今天上不上班
+                // 如果有记忆，填入输入框
                 document.getElementById('baseDate').value = savedDate;
-                calculate(savedDate);
+                if(savedWorkDays) document.getElementById('workDays').value = savedWorkDays;
+                if(savedRestDays) document.getElementById('restDays').value = savedRestDays;
+                
+                // 执行计算
+                calculate(savedDate, parseInt(savedWorkDays), parseInt(savedRestDays));
             } else {
-                // 如果是第一次打开，没有记忆，就提示你设置
+                // 没有记忆时的提示
                 document.getElementById('result').innerHTML = "<span style='font-size: 0.6em; color: #999;'>请在下方完成首次设置 👇</span>";
             }
         }
