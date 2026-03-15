@@ -5,23 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>锁门查询</title>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #f9f9f9;}
-        .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .result { font-size: 2.2em; font-weight: bold; margin: 30px 0; }
-        .work { color: #d9534f; } /* 红色上班 */
-        .rest { color: #5cb85c; } /* 绿色休息 */
-        .settings { margin-top: 40px; padding-top: 20px; border-top: 1px dashed #ccc; font-size: 0.9em; color: #666; text-align: left;}
+        body { font-family: sans-serif; text-align: center; margin-top: 20px; background-color: #f9f9f9; padding-bottom: 20px;}
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .result { font-size: 2em; font-weight: bold; margin: 20px 0; }
+        .work { color: #d9534f; } /* 红色上班文字 */
+        .rest { color: #5cb85c; } /* 绿色休息文字 */
         
-        /* 输入框样式优化 */
+        /* 日历样式 */
+        .calendar-wrap { margin-top: 25px; border-top: 1px solid #eee; padding-top: 15px; }
+        .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; color: #333;}
+        .cal-btn { background: #eee; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; }
+        .cal-btn:active { background: #ccc; }
+        .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); font-size: 0.8em; color: #666; margin-bottom: 10px; }
+        .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .day-cell { padding: 10px 0; border-radius: 5px; font-size: 0.9em; display: flex; align-items: center; justify-content: center; background-color: #f5f5f5; color: #ccc;}
+        
+        /* 日历颜色标记 */
+        .cal-work { background-color: #fde8e8; color: #d9534f; font-weight: bold; border: 1px solid #fad2d2;} /* 浅红背景 */
+        .cal-rest { background-color: #e8f5e9; color: #4caf50; font-weight: bold; border: 1px solid #c8e6c9;} /* 浅绿背景 */
+        .today-mark { border: 2px solid #007bff !important; box-sizing: border-box; } /* 蓝框标出今天 */
+
+        /* 设置区域样式 */
+        .settings { margin-top: 30px; padding-top: 20px; border-top: 1px dashed #ccc; font-size: 0.9em; color: #666; text-align: left;}
         input[type="date"] { padding: 8px; font-size: 1em; border: 1px solid #ccc; border-radius: 5px; width: 100%; box-sizing: border-box; margin-top: 10px; margin-bottom: 15px;}
         input[type="number"] { padding: 8px; font-size: 1em; border: 1px solid #ccc; border-radius: 5px; width: 60px; text-align: center; margin: 0 5px;}
-        
         .row { margin-bottom: 15px; display: flex; align-items: center; justify-content: flex-start; }
-        
-        .reset-btn { 
-            background-color: #f0ad4e; color: white; border: none; padding: 10px 15px; 
-            border-radius: 5px; font-size: 1em; cursor: pointer; width: 100%; box-sizing: border-box; margin-top: 10px;
-        }
+        .reset-btn { background-color: #f0ad4e; color: white; border: none; padding: 10px 15px; border-radius: 5px; font-size: 1em; cursor: pointer; width: 100%; box-sizing: border-box; margin-top: 10px;}
         .reset-btn:active { background-color: #ec971f; }
     </style>
 </head>
@@ -30,59 +39,75 @@
         <h2 style="color: #333; margin-bottom: 5px;">今天是哪位大叔值班？</h2>
         <div id="result" class="result">正在读取记忆...</div>
         
+        <div class="calendar-wrap">
+            <div class="cal-header">
+                <button class="cal-btn" onclick="changeMonth(-1)">❮</button>
+                <div id="monthLabel">加载中...</div>
+                <button class="cal-btn" onclick="changeMonth(1)">❯</button>
+            </div>
+            <div class="weekdays">
+                <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+            </div>
+            <div id="calendarGrid" class="days-grid"></div>
+        </div>
+        
         <div class="settings">
             <p>⚙️ <b>大叔排班规律设置：</b></p>
-            
             <div class="row">
                 上 <input type="number" id="workDays" value="1" min="1" onchange="saveAndCalculate()"> 天，
                 休 <input type="number" id="restDays" value="1" min="1" onchange="saveAndCalculate()"> 天
             </div>
-
-            <p style="font-size: 0.8em; margin-bottom: 5px;">请选择周期内<b>第一天上班</b>的日期作为基准：</p>
+            <p style="font-size: 0.8em; margin-bottom: 5px;">选择周期内<b>第一天上班</b>的日期：</p>
             <input type="date" id="baseDate" onchange="saveAndCalculate()">
-            
             <button class="reset-btn" onclick="resetSettings()">🔄 重置全部设置</button>
         </div>
     </div>
 
     <script>
-        // 保存所有设置并触发计算
+        let currentDisplayDate = new Date(); // 用于跟踪日历当前显示的月份
+
         function saveAndCalculate() {
             const selectedDate = document.getElementById('baseDate').value;
             const workD = parseInt(document.getElementById('workDays').value) || 1;
             const restD = parseInt(document.getElementById('restDays').value) || 1;
             
-            // 只有选择了日期才开始记忆和计算
             if (!selectedDate) return;
             
-            // 保存这三个关键数据到浏览器记忆
             localStorage.setItem('myWorkBaseDate', selectedDate);
             localStorage.setItem('myWorkDays', workD);
             localStorage.setItem('myRestDays', restD);
             
-            calculate(selectedDate, workD, restD);
+            updateUI();
         }
 
-        // 核心计算逻辑
-        function calculate(baseDateStr, workDays, restDays) {
+        // 统一更新主结果和日历
+        function updateUI() {
+            const savedDateStr = localStorage.getItem('myWorkBaseDate');
+            const workD = parseInt(localStorage.getItem('myWorkDays')) || 1;
+            const restD = parseInt(localStorage.getItem('myRestDays')) || 1;
+            
+            calculateToday(savedDateStr, workD, restD);
+            renderCalendar(savedDateStr, workD, restD);
+        }
+
+        // 仅仅计算“今天”并显示顶部大字
+        function calculateToday(baseDateStr, workDays, restDays) {
+            const resultDiv = document.getElementById('result');
+            if (!baseDateStr) {
+                resultDiv.innerHTML = "<span style='font-size: 0.6em; color: #999;'>请在下方完成首次设置 👇</span>";
+                return;
+            }
+
             const baseDate = new Date(baseDateStr);
             baseDate.setHours(0, 0, 0, 0);
-            
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             
-            // 计算总周期天数
             const totalCycle = workDays + restDays;
-            
-            // 计算今天距离基准日相差的天数
             const diffTime = today - baseDate;
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            
-            // 算出今天是周期里的第几天 (处理了如果基准日选在未来的情况)
             const cycleDay = ((diffDays % totalCycle) + totalCycle) % totalCycle;
             
-            const resultDiv = document.getElementById('result');
-            // 如果周期内的天数小于上班天数，就是上班，否则是休息
             if (cycleDay < workDays) {
                 resultDiv.innerHTML = "<span class='work'>锁门大叔😭</span>";
             } else {
@@ -90,41 +115,91 @@
             }
         }
 
-        // 重置功能：彻底清空记忆并恢复默认界面
+        // 渲染月历
+        function renderCalendar(baseDateStr, workDays, restDays) {
+            const calGrid = document.getElementById('calendarGrid');
+            const monthLabel = document.getElementById('monthLabel');
+            calGrid.innerHTML = ''; // 清空旧日历
+            
+            const year = currentDisplayDate.getFullYear();
+            const month = currentDisplayDate.getMonth();
+            monthLabel.innerText = `${year}年 ${month + 1}月`;
+            
+            const firstDay = new Date(year, month, 1).getDay(); // 本月第一天是星期几
+            const daysInMonth = new Date(year, month + 1, 0).getDate(); // 本月有多少天
+            
+            const todayReal = new Date();
+            todayReal.setHours(0, 0, 0, 0);
+            
+            const baseDate = baseDateStr ? new Date(baseDateStr) : null;
+            if(baseDate) baseDate.setHours(0, 0, 0, 0);
+            const totalCycle = workDays + restDays;
+
+            // 填充月初的空白格子
+            for (let i = 0; i < firstDay; i++) {
+                let emptyDiv = document.createElement('div');
+                calGrid.appendChild(emptyDiv);
+            }
+
+            // 填充日期
+            for (let i = 1; i <= daysInMonth; i++) {
+                let dayDiv = document.createElement('div');
+                dayDiv.className = 'day-cell';
+                dayDiv.innerText = i;
+                
+                let currentDate = new Date(year, month, i);
+                currentDate.setHours(0, 0, 0, 0);
+                
+                // 标记今天（加蓝框）
+                if (currentDate.getTime() === todayReal.getTime()) {
+                    dayDiv.classList.add('today-mark');
+                }
+
+                // 如果已经设置了基准日，就开始染色
+                if (baseDate) {
+                    const diffTime = currentDate - baseDate;
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    const cycleDay = ((diffDays % totalCycle) + totalCycle) % totalCycle;
+                    
+                    if (cycleDay < workDays) {
+                        dayDiv.classList.add('cal-work');
+                    } else {
+                        dayDiv.classList.add('cal-rest');
+                    }
+                }
+                
+                calGrid.appendChild(dayDiv);
+            }
+        }
+
+        // 切换月份按钮的功能
+        function changeMonth(offset) {
+            currentDisplayDate.setMonth(currentDisplayDate.getMonth() + offset);
+            updateUI(); // 重新渲染界面
+        }
+
         function resetSettings() {
-            // 1. 清除浏览器的三项记忆
             localStorage.removeItem('myWorkBaseDate');
             localStorage.removeItem('myWorkDays');
             localStorage.removeItem('myRestDays');
             
-            // 2. 恢复输入框的默认值
             document.getElementById('baseDate').value = '';
             document.getElementById('workDays').value = '1';
             document.getElementById('restDays').value = '1';
             
-            // 3. 恢复顶部提示文字
-            document.getElementById('result').innerHTML = "<span style='font-size: 0.6em; color: #999;'>已重置，请在下方重新设置 👇</span>";
+            currentDisplayDate = new Date(); // 重置回当前月
+            updateUI();
         }
 
-        // 页面打开时自动运行
         window.onload = function() {
-            // 尝试读取记忆
             const savedDate = localStorage.getItem('myWorkBaseDate');
-            const savedWorkDays = localStorage.getItem('myWorkDays');
-            const savedRestDays = localStorage.getItem('myRestDays');
-            
             if (savedDate) {
-                // 如果有记忆，填入输入框
                 document.getElementById('baseDate').value = savedDate;
-                if(savedWorkDays) document.getElementById('workDays').value = savedWorkDays;
-                if(savedRestDays) document.getElementById('restDays').value = savedRestDays;
-                
-                // 执行计算
-                calculate(savedDate, parseInt(savedWorkDays), parseInt(savedRestDays));
-            } else {
-                // 没有记忆时的提示
-                document.getElementById('result').innerHTML = "<span style='font-size: 0.6em; color: #999;'>请在下方完成首次设置 👇</span>";
+                document.getElementById('workDays').value = localStorage.getItem('myWorkDays') || '1';
+                document.getElementById('restDays').value = localStorage.getItem('myRestDays') || '1';
             }
+            // 无论有没有记忆，都先把日历和主界面画出来
+            updateUI();
         }
     </script>
 </body>
