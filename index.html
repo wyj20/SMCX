@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的排班表</title>
+    <title>锁门查询</title>
     <style>
         body { font-family: sans-serif; text-align: center; margin-top: 20px; background-color: #f9f9f9; padding-bottom: 20px;}
         .container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -58,7 +58,7 @@
 </head>
 <body>
     <div class="container">
-        <h2 style="color: #333; margin-bottom: 5px;">今天要做什么？</h2>
+        <h2 style="color: #333; margin-bottom: 5px;">今天是哪位大叔值班❓</h2>
         <div id="result" class="result">正在读取记忆...</div>
         
         <div class="calendar-wrap">
@@ -76,7 +76,7 @@
         <div class="settings">
             
             <div class="save-section">
-                <p style="margin-top: 0; color: #31708f; font-weight: bold; margin-bottom: 5px;">📁 我的排班方案</p>
+                <p style="margin-top: 0; color: #31708f; font-weight: bold; margin-bottom: 5px;">📁 排班方案</p>
                 <div id="tagsContainer" class="tags-container">
                     </div>
                 <button class="btn btn-primary" onclick="saveCurrentConfig()">➕ 将当前参数保存为新方案</button>
@@ -87,7 +87,7 @@
                 上 <input type="number" id="workDays" value="1" min="1" onchange="handleManualInput()"> 天，
                 休 <input type="number" id="restDays" value="1" min="1" onchange="handleManualInput()"> 天
             </div>
-            <p style="font-size: 0.8em; margin-bottom: 5px;">选择周期内<b>第一天上班</b>的日期：</p>
+            <p style="font-size: 0.8em; margin-bottom: 5px;">选择周期内<b>上班</b>的某个日期：</p>
             <input type="date" id="baseDate" onchange="handleManualInput()">
             <button class="btn btn-warning" onclick="resetSettings()">🔄 清空当前参数</button>
         </div>
@@ -151,7 +151,7 @@
             
             if(!baseDate) { alert("请先在下方设置好'基准日期'！"); return; }
 
-            const name = prompt("给这个排班方案起个名字吧\n（例如：3月倒班）：");
+            const name = prompt("给这个方案起个名字吧：");
             if(!name) return;
 
             const newId = Date.now().toString();
@@ -241,9 +241,9 @@
             const cycleDay = ((diffDays % totalCycle) + totalCycle) % totalCycle;
             
             if (cycleDay < workDays) {
-                resultDiv.innerHTML = "<span class='work'>今天要上班 💼</span>";
+                resultDiv.innerHTML = "<span class='work'>锁门大叔😭</span>";
             } else {
-                resultDiv.innerHTML = "<span class='rest'>今天休息 ☕️</span>";
+                resultDiv.innerHTML = "<span class='rest'>不锁门大叔🥳</span>";
             }
         }
 
